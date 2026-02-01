@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+*.zip
+dist/
+
+# API keys (if accidentally created as files)
+*.key
+.env
+.env.local

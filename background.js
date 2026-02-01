@@ -1,0 +1,95 @@
+// Background service worker for Sentence Swap extension
+// Handles Gemini API calls to avoid CORS issues in content scripts
+
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === 'translate') {
+    handleTranslation(request.sentences, request.targetLanguage, request.apiKey)
+      .then(sendResponse)
+      .catch(error => sendResponse({ error: error.message }));
+    return true; // Keep message channel open for async response
+  }
+});
+
+async function handleTranslation(sentences, targetLanguage, apiKey) {
+  if (!apiKey) {
+    throw new Error('Gemini API key not configured. Please set it in extension options.');
+  }
+
+  const translations = [];
+
+  for (const item of sentences) {
+    try {
+      const translation = await translateSentence(
+        item.sentence,
+        item.context,
+        targetLanguage,
+        apiKey
+      );
+      translations.push({
+        index: item.index,
+        original: item.sentence,
+        translated: translation
+      });
+    } catch (error) {
+      console.error('Translation error for sentence:', item.sentence, error);
+      translations.push({
+        index: item.index,
+        original: item.sentence,
+        translated: null,
+        error: error.message
+      });
+    }
+  }
+
+  return { translations };
+}
+
+async function translateSentence(sentence, context, targetLanguage, apiKey) {
+  const prompt = buildPrompt(sentence, context, targetLanguage);
+
+  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemma-3-27b-it:generateContent?key=${apiKey}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      contents: [
+        {
+          parts: [{ text: prompt }]
+        }
+      ],
+      generationConfig: {
+        temperature: 0.3,
+        maxOutputTokens: 500
+      }
+    })
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.error?.message || `API request failed: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return data.candidates[0].content.parts[0].text.trim();
+}
+
+function buildPrompt(sentence, context, targetLanguage) {
+  let prompt = `You are a translator. Translate the given sentence to ${targetLanguage}.
+Only output the translated sentence, nothing else.
+Maintain the same tone and style as the original.
+If the sentence contains proper nouns, keep them as-is unless they have a well-known translation.\n`;
+
+
+  if (context.before) {
+    prompt += `Context before: "${context.before}"\n\n`;
+  }
+
+  prompt += `Translate this sentence to ${targetLanguage}:\n"${sentence}"`;
+
+  if (context.after) {
+    prompt += `\n\nContext after: "${context.after}"`;
+  }
+
+  return prompt;
+}

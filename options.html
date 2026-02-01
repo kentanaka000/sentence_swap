@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Sentence Swap Settings</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 14px;
+      color: #333;
+      background-color: #f5f5f5;
+      min-height: 100vh;
+      padding: 40px 20px;
+    }
+
+    .container {
+      max-width: 500px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      padding: 24px;
+    }
+
+    h1 {
+      font-size: 24px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .subtitle {
+      color: #666;
+      margin-bottom: 24px;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    label {
+      display: block;
+      font-weight: 500;
+      margin-bottom: 6px;
+    }
+
+    .description {
+      font-size: 12px;
+      color: #666;
+      margin-bottom: 8px;
+    }
+
+    input[type="text"],
+    input[type="password"],
+    input[type="number"],
+    select {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+      transition: border-color 0.2s;
+    }
+
+    input:focus,
+    select:focus {
+      outline: none;
+      border-color: #4CAF50;
+    }
+
+    input[type="number"] {
+      width: 100px;
+    }
+
+    .range-container {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    input[type="range"] {
+      flex: 1;
+      height: 6px;
+      -webkit-appearance: none;
+      background: #ddd;
+      border-radius: 3px;
+      outline: none;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 18px;
+      height: 18px;
+      background: #4CAF50;
+      border-radius: 50%;
+      cursor: pointer;
+    }
+
+    .range-value {
+      min-width: 40px;
+      text-align: right;
+      font-weight: 500;
+    }
+
+    .api-key-container {
+      position: relative;
+    }
+
+    .toggle-visibility {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: #666;
+      font-size: 16px;
+    }
+
+    .save-btn {
+      width: 100%;
+      padding: 12px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+
+    .save-btn:hover {
+      background-color: #45a049;
+    }
+
+    .save-btn:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+
+    .status {
+      margin-top: 12px;
+      padding: 10px;
+      border-radius: 4px;
+      text-align: center;
+      display: none;
+    }
+
+    .status.success {
+      display: block;
+      background-color: #d4edda;
+      color: #155724;
+    }
+
+    .status.error {
+      display: block;
+      background-color: #f8d7da;
+      color: #721c24;
+    }
+
+    .divider {
+      height: 1px;
+      background-color: #eee;
+      margin: 24px 0;
+    }
+
+    .info-box {
+      background-color: #e7f3ff;
+      border-radius: 4px;
+      padding: 12px;
+      font-size: 13px;
+      color: #0066cc;
+    }
+
+    .info-box a {
+      color: #0066cc;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>
+      <span>🔄</span>
+      Sentence Swap Settings
+    </h1>
+    <p class="subtitle">Configure your language learning experience</p>
+
+    <form id="settingsForm">
+      <div class="form-group">
+        <label for="apiKey">Gemini API Key</label>
+        <p class="description">Your API key is stored locally and never shared. <a href="https://aistudio.google.com/app/apikey" target="_blank">Get one here</a></p>
+        <div class="api-key-container">
+          <input type="password" id="apiKey" placeholder="AIza...">
+          <button type="button" class="toggle-visibility" id="toggleApiKey">👁</button>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="targetLanguage">Target Language</label>
+        <p class="description">Sentences will be translated to this language</p>
+        <select id="targetLanguage">
+          <option value="Spanish">Spanish</option>
+          <option value="French">French</option>
+          <option value="German">German</option>
+          <option value="Italian">Italian</option>
+          <option value="Portuguese">Portuguese</option>
+          <option value="Dutch">Dutch</option>
+          <option value="Russian">Russian</option>
+          <option value="Japanese">Japanese</option>
+          <option value="Korean">Korean</option>
+          <option value="Mandarin Chinese">Mandarin Chinese</option>
+          <option value="Arabic">Arabic</option>
+          <option value="Hindi">Hindi</option>
+          <option value="Swedish">Swedish</option>
+          <option value="Norwegian">Norwegian</option>
+          <option value="Danish">Danish</option>
+          <option value="Polish">Polish</option>
+          <option value="Turkish">Turkish</option>
+          <option value="Greek">Greek</option>
+          <option value="Hebrew">Hebrew</option>
+          <option value="Vietnamese">Vietnamese</option>
+          <option value="Thai">Thai</option>
+          <option value="Indonesian">Indonesian</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="percentage">Translation Percentage</label>
+        <p class="description">Percentage of sentences to translate on each page</p>
+        <div class="range-container">
+          <input type="range" id="percentage" min="5" max="50" step="5" value="15">
+          <span class="range-value" id="percentageValue">15%</span>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <button type="submit" class="save-btn">Save Settings</button>
+      <div class="status" id="status"></div>
+    </form>
+
+    <div class="divider"></div>
+
+    <div class="info-box">
+      <strong>How it works:</strong> When you visit a webpage, Sentence Swap will randomly select sentences from the main content and translate them to your target language. Hover over translated text to see the original.
+    </div>
+  </div>
+
+  <script src="options.js"></script>
+</body>
+</html>

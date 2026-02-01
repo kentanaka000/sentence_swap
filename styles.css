@@ -1,0 +1,89 @@
+/* Sentence Swap - Content Script Styles */
+
+.sentence-swap-translated {
+  position: relative;
+  background-color: rgba(76, 175, 80, 0.1);
+  border-bottom: 2px dotted rgba(76, 175, 80, 0.5);
+  padding: 0 2px;
+  margin: 0 -2px;
+  border-radius: 2px;
+  cursor: help;
+  transition: background-color 0.2s ease;
+}
+
+.sentence-swap-translated:hover {
+  background-color: rgba(76, 175, 80, 0.2);
+}
+
+/* Tooltip showing original text on hover */
+.sentence-swap-translated::after {
+  content: attr(data-original);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #333;
+  color: white;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  line-height: 1.4;
+  white-space: normal;
+  max-width: 300px;
+  min-width: 150px;
+  text-align: left;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+  z-index: 999999;
+  pointer-events: none;
+  margin-bottom: 8px;
+}
+
+/* Tooltip arrow */
+.sentence-swap-translated::before {
+  content: '';
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: #333;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+  z-index: 999999;
+  margin-bottom: -4px;
+}
+
+.sentence-swap-translated:hover::after,
+.sentence-swap-translated:hover::before {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Handle edge cases where tooltip would go off-screen */
+.sentence-swap-translated:first-child::after {
+  left: 0;
+  transform: translateX(0);
+}
+
+.sentence-swap-translated:first-child::before {
+  left: 20px;
+  transform: translateX(0);
+}
+
+/* Animation for when translation is applied */
+@keyframes sentence-swap-highlight {
+  0% {
+    background-color: rgba(76, 175, 80, 0.4);
+  }
+  100% {
+    background-color: rgba(76, 175, 80, 0.1);
+  }
+}
+
+.sentence-swap-translated {
+  animation: sentence-swap-highlight 1s ease-out;
+}
