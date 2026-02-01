@@ -128,6 +128,7 @@ async function processPage(settings) {
     return;
   }
 
+  console.log(response)
   console.log('Sentence Swap: Translation complete', response.summary);
 }
 
