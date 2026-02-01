@@ -85,7 +85,7 @@ async function processPage(settings) {
   window.__sentenceSwapData.allSentences = allSentences;
 
   // Select random sentences based on percentage
-  const selectedCount = Math.max(1, Math.floor(allSentences.length * (settings.percentage / 100)));
+  const selectedCount = Math.min(30, Math.max(1, Math.floor(allSentences.length * (settings.percentage / 100))));
   const selectedSentences = selectRandomSentences(allSentences, selectedCount);
 
   // Pre-wrap selected sentences with placeholder spans
