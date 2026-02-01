@@ -34,6 +34,9 @@
   }
 
   // Wait for page to be fully loaded
+  if (document.readyState === 'loading') {
+    await new Promise(resolve => document.addEventListener('DOMContentLoaded', resolve));
+  }
   if (document.readyState !== 'complete') {
     await new Promise(resolve => window.addEventListener('load', resolve));
   }
@@ -49,14 +52,23 @@
 })();
 
 async function loadSettings() {
-  return new Promise(resolve => {
+  // Load non-sensitive settings from sync storage
+  const syncSettings = await new Promise(resolve => {
     chrome.storage.sync.get({
       enabled: true,
-      apiKey: '',
       targetLanguage: 'Spanish',
       percentage: 15
     }, resolve);
   });
+
+  // Load API key from local storage (more secure, doesn't sync across devices)
+  const localSettings = await new Promise(resolve => {
+    chrome.storage.local.get({
+      apiKey: ''
+    }, resolve);
+  });
+
+  return { ...syncSettings, ...localSettings };
 }
 
 async function processPage(settings) {
@@ -128,7 +140,6 @@ async function processPage(settings) {
     return;
   }
 
-  console.log(response)
   console.log('Sentence Swap: Translation complete', response.summary);
 }
 
@@ -331,8 +342,19 @@ function parseSentences(textNodes) {
     let match;
     let lastIndex = 0;
 
+    // Reset regex state for each text node
+    sentenceRegex.lastIndex = 0;
+
     while ((match = sentenceRegex.exec(text)) !== null) {
-      const sentence = match[1].trim();
+      const rawMatch = match[1];
+      const sentence = rawMatch.trim();
+
+      // Calculate correct offsets for the trimmed sentence
+      const leadingWhitespace = rawMatch.length - rawMatch.trimStart().length;
+      const trailingWhitespace = rawMatch.length - rawMatch.trimEnd().length;
+      const startOffset = match.index + leadingWhitespace;
+      const endOffset = match.index + rawMatch.length - trailingWhitespace;
+
       // Skip short sentences and those not starting with a capital letter
       const startsWithCapital = /^[A-Z]/.test(sentence);
       if (sentence.length > 20 && startsWithCapital) {
@@ -340,8 +362,8 @@ function parseSentences(textNodes) {
           index: sentences.length,
           sentence: sentence,
           textNode: textNode,
-          startOffset: match.index,
-          endOffset: match.index + match[1].length
+          startOffset: startOffset,
+          endOffset: endOffset
         });
       }
       lastIndex = sentenceRegex.lastIndex;

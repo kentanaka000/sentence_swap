@@ -9,15 +9,20 @@ document.addEventListener('DOMContentLoaded', async () => {
   const openOptions = document.getElementById('openOptions');
   const reloadBtn = document.getElementById('reloadBtn');
 
-  // Load current settings
-  const settings = await new Promise(resolve => {
+  // Load current settings (sync for preferences, local for API key)
+  const syncSettings = await new Promise(resolve => {
     chrome.storage.sync.get({
       enabled: true,
-      apiKey: '',
       targetLanguage: 'Spanish',
       percentage: 15
     }, resolve);
   });
+  const localSettings = await new Promise(resolve => {
+    chrome.storage.local.get({
+      apiKey: ''
+    }, resolve);
+  });
+  const settings = { ...syncSettings, ...localSettings };
 
   // Update UI with current settings
   enabledToggle.checked = settings.enabled;

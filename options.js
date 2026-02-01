@@ -9,14 +9,19 @@ document.addEventListener('DOMContentLoaded', async () => {
   const percentageValue = document.getElementById('percentageValue');
   const status = document.getElementById('status');
 
-  // Load current settings
-  const settings = await new Promise(resolve => {
+  // Load current settings (sync for preferences, local for API key)
+  const syncSettings = await new Promise(resolve => {
     chrome.storage.sync.get({
-      apiKey: '',
       targetLanguage: 'Spanish',
       percentage: 15
     }, resolve);
   });
+  const localSettings = await new Promise(resolve => {
+    chrome.storage.local.get({
+      apiKey: ''
+    }, resolve);
+  });
+  const settings = { ...syncSettings, ...localSettings };
 
   // Populate form with current settings
   apiKeyInput.value = settings.apiKey;
@@ -44,14 +49,18 @@ document.addEventListener('DOMContentLoaded', async () => {
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
 
-    const newSettings = {
-      apiKey: apiKeyInput.value.trim(),
-      targetLanguage: targetLanguageSelect.value,
-      percentage: parseInt(percentageInput.value, 10)
-    };
-
     try {
-      await chrome.storage.sync.set(newSettings);
+      // Save API key to local storage (more secure)
+      await chrome.storage.local.set({
+        apiKey: apiKeyInput.value.trim()
+      });
+
+      // Save other settings to sync storage
+      await chrome.storage.sync.set({
+        targetLanguage: targetLanguageSelect.value,
+        percentage: parseInt(percentageInput.value, 10)
+      });
+
       showStatus('Settings saved successfully!', 'success');
     } catch (error) {
       showStatus('Error saving settings: ' + error.message, 'error');

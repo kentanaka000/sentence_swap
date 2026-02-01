@@ -90,6 +90,12 @@ If the sentence contains proper nouns, keep them as-is unless they have a well-k
   }
 
   const data = await response.json();
+
+  // Validate response structure
+  if (!data.choices || !data.choices[0] || !data.choices[0].message || !data.choices[0].message.content) {
+    throw new Error('Invalid API response structure');
+  }
+
   return data.choices[0].message.content.trim();
 }
 
