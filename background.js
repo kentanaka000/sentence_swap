@@ -51,7 +51,7 @@ async function handleTranslation(sentences, targetLanguage, apiKey, tabId) {
 
   // Return summary
   const successful = results.filter(r => r.success).length;
-  const failed = results.filter(r => !r.success).length;
+  const failed = results.length - successful;
 
   return {
     completed: true,
@@ -103,7 +103,13 @@ Keep proper nouns as-is unless they have well-known translations.`;
   }
 
   const content = data.choices[0].message.content.trim();
-  const result = JSON.parse(content);
+
+  let result;
+  try {
+    result = JSON.parse(content);
+  } catch (e) {
+    throw new Error('Invalid JSON response from API');
+  }
 
   if (!result.valid) {
     throw new Error('Sentence not valid for translation');
