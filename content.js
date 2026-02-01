@@ -278,47 +278,42 @@ function findMainContent() {
 
 function extractTextNodes(root) {
   const textNodes = [];
-  const walker = document.createTreeWalker(
-    root,
-    NodeFilter.SHOW_TEXT,
-    {
-      acceptNode: function(node) {
-        // Skip empty nodes
-        if (!node.textContent.trim()) {
-          return NodeFilter.FILTER_REJECT;
+  const skipTags = new Set(['script', 'style', 'noscript', 'iframe', 'nav', 'header', 'footer', 'aside', 'button', 'input', 'textarea', 'select', 'code', 'pre']);
+
+  // Walk elements first, skipping entire hidden subtrees
+  function walkElement(element) {
+    const tagName = element.tagName.toLowerCase();
+
+    // Skip entire subtree for these tags
+    if (skipTags.has(tagName)) {
+      return;
+    }
+
+    // Skip navigation and menu subtrees
+    const role = element.getAttribute('role');
+    if (role === 'navigation' || role === 'banner' || role === 'contentinfo') {
+      return;
+    }
+
+    // Skip hidden elements and their subtrees
+    const style = window.getComputedStyle(element);
+    if (style.display === 'none' || style.visibility === 'hidden') {
+      return;
+    }
+
+    // Process child nodes
+    for (const child of element.childNodes) {
+      if (child.nodeType === Node.TEXT_NODE) {
+        if (child.textContent.trim()) {
+          textNodes.push(child);
         }
-
-        // Skip script, style, and other non-visible elements
-        const parent = node.parentElement;
-        if (!parent) return NodeFilter.FILTER_REJECT;
-
-        const tagName = parent.tagName.toLowerCase();
-        const skipTags = ['script', 'style', 'noscript', 'iframe', 'nav', 'header', 'footer', 'aside', 'button', 'input', 'textarea', 'select', 'code', 'pre'];
-        if (skipTags.includes(tagName)) {
-          return NodeFilter.FILTER_REJECT;
-        }
-
-        // Skip hidden elements
-        const style = window.getComputedStyle(parent);
-        if (style.display === 'none' || style.visibility === 'hidden') {
-          return NodeFilter.FILTER_REJECT;
-        }
-
-        // Skip navigation and menu items
-        if (parent.closest('nav, header, footer, aside, [role="navigation"], [role="banner"], [role="contentinfo"]')) {
-          return NodeFilter.FILTER_REJECT;
-        }
-
-        return NodeFilter.FILTER_ACCEPT;
+      } else if (child.nodeType === Node.ELEMENT_NODE) {
+        walkElement(child);
       }
     }
-  );
-
-  let node;
-  while (node = walker.nextNode()) {
-    textNodes.push(node);
   }
 
+  walkElement(root);
   return textNodes;
 }
 
