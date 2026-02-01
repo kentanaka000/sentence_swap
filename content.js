@@ -198,6 +198,8 @@ function applyTranslation(translation) {
   );
 
   if (!translation.success || !translation.translated) {
+    // Log the error
+    console.error('Sentence Swap: Translation failed for:', translation.original, translation.error || 'Unknown error');
     // Remove the placeholder for failed translations
     if (placeholder) {
       // Replace with original text
