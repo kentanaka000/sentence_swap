@@ -198,9 +198,7 @@ function applyTranslation(translation) {
   );
 
   if (!translation.success || !translation.translated) {
-    // Log the error
-    console.error('Sentence Swap: Translation failed for:', translation.original, translation.error || 'Unknown error');
-    // Remove the placeholder for failed translations
+    // Remove the placeholder for failed translations (error already logged in background.js)
     if (placeholder) {
       // Replace with original text
       placeholder.replaceWith(document.createTextNode(placeholder.dataset.original));
