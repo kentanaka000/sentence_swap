@@ -3,23 +3,11 @@
 
 (async function() {
   // Prevent running multiple times
-  if (window.__sentenceSwapInitialized) return;
+  if (window.__sentenceSwapInitialized) {
+    return;
+  }
+
   window.__sentenceSwapInitialized = true;
-
-  // Store for sentence data (needed for applying translations)
-  window.__sentenceSwapData = {
-    allSentences: [],
-    pendingTranslations: new Map()
-  };
-
-  // Listen for translation results from background script
-  chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.action === 'translationResult') {
-      applyTranslation(request.translation);
-      sendResponse({ received: true });
-    }
-    return false;
-  });
 
   // Load settings
   const settings = await loadSettings();
@@ -37,12 +25,18 @@
   if (document.readyState === 'loading') {
     await new Promise(resolve => document.addEventListener('DOMContentLoaded', resolve));
   }
-  if (document.readyState !== 'complete') {
-    await new Promise(resolve => window.addEventListener('load', resolve));
-  }
 
   // Small delay to let dynamic content load
   await new Promise(resolve => setTimeout(resolve, 500));
+
+  // Listen for translation results from background script
+  chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.action === 'translationResult') {
+      applyTranslation(request.translation);
+      sendResponse({ received: true });
+    }
+    return false;
+  });
 
   try {
     await processPage(settings);
@@ -92,9 +86,6 @@ async function processPage(settings) {
     console.log('Sentence Swap: No sentences found');
     return;
   }
-
-  // Store for later use when translations arrive
-  window.__sentenceSwapData.allSentences = allSentences;
 
   // Calculate total characters in all text nodes
   const totalChars = textNodes.reduce((sum, node) => sum + node.textContent.length, 0);
