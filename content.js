@@ -35,7 +35,7 @@
       applyTranslation(request.translation);
       sendResponse({ received: true });
     }
-    return false;
+    return true;
   });
 
   try {
@@ -192,22 +192,19 @@ function wrapSentencesWithPlaceholders(selectedSentences, allSentences) {
 }
 
 function applyTranslation(translation) {
+  // Find the placeholder span for this sentence
+  const placeholder = document.querySelector(
+    `.sentence-swap-placeholder[data-sentence-index="${translation.index}"]`
+  );
+
   if (!translation.success || !translation.translated) {
     // Remove the placeholder for failed translations
-    const placeholder = document.querySelector(
-      `.sentence-swap-placeholder[data-sentence-index="${translation.index}"]`
-    );
     if (placeholder) {
       // Replace with original text
       placeholder.replaceWith(document.createTextNode(placeholder.dataset.original));
     }
     return;
   }
-
-  // Find the placeholder span for this sentence
-  const placeholder = document.querySelector(
-    `.sentence-swap-placeholder[data-sentence-index="${translation.index}"]`
-  );
 
   if (!placeholder) {
     console.warn('Sentence Swap: Could not find placeholder for index', translation.index);
@@ -320,18 +317,14 @@ function extractTextNodes(root) {
 function parseSentences(textNodes) {
   const sentences = [];
 
-  // Regex to split by sentence boundaries
-  // Only split when punctuation is followed by whitespace or end of text
-  const sentenceRegex = /([^.!?]*[.!?]+)(?=\s|$)/g;
-
   for (const textNode of textNodes) {
     const text = textNode.textContent;
-    let match;
 
-    // Reset regex state for each text node
-    sentenceRegex.lastIndex = 0;
+    // Use matchAll to avoid global regex state issues
+    // Matches sentence boundaries: punctuation followed by whitespace or end of text
+    const matches = text.matchAll(/([^.!?]*[.!?]+)(?=\s|$)/g);
 
-    while ((match = sentenceRegex.exec(text)) !== null) {
+    for (const match of matches) {
       const rawMatch = match[1];
       const sentence = rawMatch.trim();
 
