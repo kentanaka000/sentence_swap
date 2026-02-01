@@ -321,7 +321,8 @@ function parseSentences(textNodes) {
   const sentences = [];
 
   // Regex to split by sentence boundaries
-  const sentenceRegex = /([^.!?]*[.!?]+[\s]*)/g;
+  // Only split when punctuation is followed by whitespace or end of text
+  const sentenceRegex = /([^.!?]*[.!?]+)(?=\s|$)/g;
 
   for (const textNode of textNodes) {
     const text = textNode.textContent;

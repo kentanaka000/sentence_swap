@@ -62,10 +62,15 @@ async function handleTranslation(sentences, targetLanguage, apiKey, tabId) {
 async function translateSentence(sentence, context, targetLanguage, apiKey) {
   const prompt = buildPrompt(sentence, context, targetLanguage);
 
-  const systemPrompt = `You are a translator. Translate the given sentence to ${targetLanguage}.
-Only output the translated sentence, nothing else.
-Maintain the same tone and style as the original.
-If the sentence contains proper nouns, keep them as-is unless they have a well-known translation.`;
+  const systemPrompt = `Translate sentences to ${targetLanguage}. Return JSON only.
+
+First, check if the sentence boundary is correct (not split mid-URL, decimal, abbreviation like "e.g.", or name like "Stephen A. Smith"). Use the surrounding context to judge.
+
+Response format:
+- Valid: {"valid": true, "translation": "..."}
+- Invalid: {"valid": false}
+
+Keep proper nouns as-is unless they have well-known translations.`;
 
   const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
     method: 'POST',
@@ -80,7 +85,8 @@ If the sentence contains proper nouns, keep them as-is unless they have a well-k
         { role: 'user', content: prompt }
       ],
       temperature: 0.3,
-      max_tokens: 500
+      max_tokens: 500,
+      response_format: { type: 'json_object' }
     })
   });
 
@@ -96,7 +102,14 @@ If the sentence contains proper nouns, keep them as-is unless they have a well-k
     throw new Error('Invalid API response structure');
   }
 
-  return data.choices[0].message.content.trim();
+  const content = data.choices[0].message.content.trim();
+  const result = JSON.parse(content);
+
+  if (!result.valid) {
+    throw new Error('Sentence not valid for translation');
+  }
+
+  return result.translation;
 }
 
 function buildPrompt(sentence, context, targetLanguage) {
