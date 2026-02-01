@@ -82,16 +82,17 @@ async function processPage(settings) {
 
   // Parse all sentences with their positions
   const allSentences = parseSentences(textNodes);
-  if (allSentences.length === 0) {
+  const numValidSentences = allSentences.filter(s => s.valid).length;
+  if (numValidSentences === 0) {
     console.log('Sentence Swap: No sentences found');
     return;
   }
 
   // Calculate total characters in all text nodes
-  const totalChars = textNodes.reduce((sum, node) => sum + node.textContent.length, 0);
+  const totalChars = allSentences.reduce((sum, s) => sum + s.sentence.length, 0);
 
   // Calculate total characters in valid sentences
-  const validSentenceChars = allSentences.reduce((sum, s) => sum + s.sentence.length, 0);
+  const validSentenceChars = allSentences.filter(s => s.valid).reduce((sum, s) => sum + s.sentence.length, 0);
 
   // Adjust percentage so that x% of total text gets translated
   // Formula: (adjusted% of valid sentences) * validChars = x% * totalChars
@@ -99,9 +100,8 @@ async function processPage(settings) {
     ? (totalChars / validSentenceChars) * settings.percentage
     : settings.percentage;
 
-  // Select random sentences based on adjusted percentage, capped at 30
-  const selectedCount = Math.min(30, Math.max(1, Math.floor(allSentences.length * (adjustedPercentage / 100))));
-  const selectedSentences = selectRandomSentences(allSentences, selectedCount);
+  // Select random sentences - each valid sentence has adjustedPercentage chance of being picked
+  const selectedSentences = selectRandomSentences(allSentences, adjustedPercentage);
 
   // Pre-wrap selected sentences with placeholder spans
   wrapSentencesWithPlaceholders(selectedSentences, allSentences);
@@ -327,7 +327,6 @@ function parseSentences(textNodes) {
   for (const textNode of textNodes) {
     const text = textNode.textContent;
     let match;
-    let lastIndex = 0;
 
     // Reset regex state for each text node
     sentenceRegex.lastIndex = 0;
@@ -344,28 +343,42 @@ function parseSentences(textNodes) {
 
       // Skip short sentences and those not starting with a capital letter
       const startsWithCapital = /^[A-Z]/.test(sentence);
-      if (sentence.length > 20 && startsWithCapital) {
-        sentences.push({
-          index: sentences.length,
-          sentence: sentence,
-          textNode: textNode,
-          startOffset: startOffset,
-          endOffset: endOffset
-        });
-      }
-      lastIndex = sentenceRegex.lastIndex;
+      const valid = sentence.length > 20 && startsWithCapital;
+      sentences.push({
+        index: sentences.length,
+        sentence: sentence,
+        textNode: textNode,
+        startOffset: startOffset,
+        endOffset: endOffset,
+        valid: valid
+      });
     }
   }
 
   return sentences;
 }
 
-function selectRandomSentences(sentences, count) {
-  const shuffled = [...sentences].sort(() => Math.random() - 0.5);
-  return shuffled.slice(0, count).sort((a, b) => {
-    // Sort by textNode order, then by offset within the node
-    const nodeIndexA = sentences.indexOf(a);
-    const nodeIndexB = sentences.indexOf(b);
-    return nodeIndexA - nodeIndexB;
-  });
+function selectRandomSentences(sentences, percentage) {
+  const selected = [];
+  const maxSentences = 30;
+  const probability = percentage / 100;
+
+  for (const sentence of sentences) {
+    // Only consider valid sentences
+    if (!sentence.valid) {
+      continue;
+    }
+
+    // Randomly pick this sentence with the given probability
+    if (Math.random() < probability) {
+      selected.push(sentence);
+
+      // Stop if we've reached the maximum
+      if (selected.length >= maxSentences) {
+        break;
+      }
+    }
+  }
+
+  return selected;
 }
