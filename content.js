@@ -320,7 +320,9 @@ function parseSentences(textNodes) {
 
     while ((match = sentenceRegex.exec(text)) !== null) {
       const sentence = match[1].trim();
-      if (sentence.length > 20) { // Skip very short sentences
+      // Skip short sentences and those not starting with a capital letter
+      const startsWithCapital = /^[A-Z]/.test(sentence);
+      if (sentence.length > 20 && startsWithCapital) {
         sentences.push({
           index: sentences.length,
           sentence: sentence,
@@ -330,18 +332,6 @@ function parseSentences(textNodes) {
         });
       }
       lastIndex = sentenceRegex.lastIndex;
-    }
-
-    // Handle remaining text without sentence-ending punctuation
-    const remaining = text.slice(lastIndex).trim();
-    if (remaining.length > 50) {
-      sentences.push({
-        index: sentences.length,
-        sentence: remaining,
-        textNode: textNode,
-        startOffset: lastIndex,
-        endOffset: text.length
-      });
     }
   }
 
