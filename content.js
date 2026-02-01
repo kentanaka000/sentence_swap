@@ -135,7 +135,7 @@ async function processPage(settings) {
 }
 
 function wrapSentencesWithPlaceholders(selectedSentences, allSentences) {
-  // Group by text node and sort by offset descending (so we replace from end to start)
+  // Group by text node (sentences are already in document order from selection)
   const byTextNode = new Map();
 
   for (const sentence of selectedSentences) {
@@ -151,34 +151,28 @@ function wrapSentencesWithPlaceholders(selectedSentences, allSentences) {
 
   // Process each text node
   for (const [textNode, sentences] of byTextNode) {
-    // Sort by offset descending
-    sentences.sort((a, b) => b.startOffset - a.startOffset);
-
     const parent = textNode.parentNode;
     if (!parent) continue;
 
     const originalText = textNode.textContent;
     const fragment = document.createDocumentFragment();
 
-    // Sort ascending for building the fragment
-    const sortedAsc = [...sentences].sort((a, b) => a.startOffset - b.startOffset);
-
     let currentPos = 0;
-    for (const sent of sortedAsc) {
+    for (const sentence of sentences) {
       // Add text before this sentence
-      if (sent.startOffset > currentPos) {
-        fragment.appendChild(document.createTextNode(originalText.slice(currentPos, sent.startOffset)));
+      if (sentence.startOffset > currentPos) {
+        fragment.appendChild(document.createTextNode(originalText.slice(currentPos, sentence.startOffset)));
       }
 
       // Create placeholder span
       const wrapper = document.createElement('span');
       wrapper.className = 'sentence-swap-placeholder';
-      wrapper.dataset.sentenceIndex = sent.originalIndex;
-      wrapper.dataset.original = sent.sentence;
-      wrapper.textContent = sent.sentence; // Show original until translation arrives
+      wrapper.dataset.sentenceIndex = sentence.originalIndex;
+      wrapper.dataset.original = sentence.sentence;
+      wrapper.textContent = sentence.sentence; // Show original until translation arrives
 
       fragment.appendChild(wrapper);
-      currentPos = sent.endOffset;
+      currentPos = sentence.endOffset;
     }
 
     // Add remaining text
