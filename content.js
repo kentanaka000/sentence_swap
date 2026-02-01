@@ -6,6 +6,21 @@
   if (window.__sentenceSwapInitialized) return;
   window.__sentenceSwapInitialized = true;
 
+  // Store for sentence data (needed for applying translations)
+  window.__sentenceSwapData = {
+    allSentences: [],
+    pendingTranslations: new Map()
+  };
+
+  // Listen for translation results from background script
+  chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.action === 'translationResult') {
+      applyTranslation(request.translation);
+      sendResponse({ received: true });
+    }
+    return false;
+  });
+
   // Load settings
   const settings = await loadSettings();
 
@@ -66,9 +81,15 @@ async function processPage(settings) {
     return;
   }
 
+  // Store for later use when translations arrive
+  window.__sentenceSwapData.allSentences = allSentences;
+
   // Select random sentences based on percentage
   const selectedCount = Math.max(1, Math.floor(allSentences.length * (settings.percentage / 100)));
   const selectedSentences = selectRandomSentences(allSentences, selectedCount);
+
+  // Pre-wrap selected sentences with placeholder spans
+  wrapSentencesWithPlaceholders(selectedSentences, allSentences);
 
   // Prepare sentences with context for translation
   const sentencesWithContext = selectedSentences.map(item => ({
@@ -80,7 +101,7 @@ async function processPage(settings) {
     }
   }));
 
-  // Request translations from background script
+  // Request translations from background script (they'll arrive asynchronously)
   const response = await chrome.runtime.sendMessage({
     action: 'translate',
     sentences: sentencesWithContext,
@@ -90,11 +111,106 @@ async function processPage(settings) {
 
   if (response.error) {
     console.error('Sentence Swap translation error:', response.error);
+    // Remove placeholders on error
+    removePlaceholders();
     return;
   }
 
-  // Apply translations to the DOM
-  applyTranslations(response.translations, allSentences);
+  console.log('Sentence Swap: Translation complete', response.summary);
+}
+
+function wrapSentencesWithPlaceholders(selectedSentences, allSentences) {
+  // Group by text node and sort by offset descending (so we replace from end to start)
+  const byTextNode = new Map();
+
+  for (const sentence of selectedSentences) {
+    const sentenceInfo = allSentences[sentence.index];
+    if (!byTextNode.has(sentenceInfo.textNode)) {
+      byTextNode.set(sentenceInfo.textNode, []);
+    }
+    byTextNode.get(sentenceInfo.textNode).push({
+      ...sentenceInfo,
+      originalIndex: sentence.index
+    });
+  }
+
+  // Process each text node
+  for (const [textNode, sentences] of byTextNode) {
+    // Sort by offset descending
+    sentences.sort((a, b) => b.startOffset - a.startOffset);
+
+    const parent = textNode.parentNode;
+    if (!parent) continue;
+
+    const originalText = textNode.textContent;
+    const fragment = document.createDocumentFragment();
+
+    // Sort ascending for building the fragment
+    const sortedAsc = [...sentences].sort((a, b) => a.startOffset - b.startOffset);
+
+    let currentPos = 0;
+    for (const sent of sortedAsc) {
+      // Add text before this sentence
+      if (sent.startOffset > currentPos) {
+        fragment.appendChild(document.createTextNode(originalText.slice(currentPos, sent.startOffset)));
+      }
+
+      // Create placeholder span
+      const wrapper = document.createElement('span');
+      wrapper.className = 'sentence-swap-placeholder';
+      wrapper.dataset.sentenceIndex = sent.originalIndex;
+      wrapper.dataset.original = sent.sentence;
+      wrapper.textContent = sent.sentence; // Show original until translation arrives
+
+      fragment.appendChild(wrapper);
+      currentPos = sent.endOffset;
+    }
+
+    // Add remaining text
+    if (currentPos < originalText.length) {
+      fragment.appendChild(document.createTextNode(originalText.slice(currentPos)));
+    }
+
+    // Replace the text node
+    parent.replaceChild(fragment, textNode);
+  }
+}
+
+function applyTranslation(translation) {
+  if (!translation.success || !translation.translated) {
+    // Remove the placeholder for failed translations
+    const placeholder = document.querySelector(
+      `.sentence-swap-placeholder[data-sentence-index="${translation.index}"]`
+    );
+    if (placeholder) {
+      // Replace with original text
+      placeholder.replaceWith(document.createTextNode(placeholder.dataset.original));
+    }
+    return;
+  }
+
+  // Find the placeholder span for this sentence
+  const placeholder = document.querySelector(
+    `.sentence-swap-placeholder[data-sentence-index="${translation.index}"]`
+  );
+
+  if (!placeholder) {
+    console.warn('Sentence Swap: Could not find placeholder for index', translation.index);
+    return;
+  }
+
+  // Convert placeholder to translated span
+  placeholder.className = 'sentence-swap-translated';
+  placeholder.dataset.translated = translation.translated;
+  placeholder.textContent = translation.translated;
+  placeholder.title = translation.original;
+}
+
+function removePlaceholders() {
+  const placeholders = document.querySelectorAll('.sentence-swap-placeholder');
+  for (const placeholder of placeholders) {
+    placeholder.replaceWith(document.createTextNode(placeholder.dataset.original));
+  }
 }
 
 function findMainContent() {
@@ -240,77 +356,4 @@ function selectRandomSentences(sentences, count) {
     const nodeIndexB = sentences.indexOf(b);
     return nodeIndexA - nodeIndexB;
   });
-}
-
-function applyTranslations(translations, allSentences) {
-  console.log(translations, allSentences)
-  // Group translations by text node
-  const translationMap = new Map();
-  for (const trans of translations) {
-    if (!trans.translated) continue;
-
-    const sentenceInfo = allSentences[trans.index];
-    if (!sentenceInfo) continue;
-
-    if (!translationMap.has(sentenceInfo.textNode)) {
-      translationMap.set(sentenceInfo.textNode, []);
-    }
-    translationMap.set(sentenceInfo.textNode, [
-      ...translationMap.get(sentenceInfo.textNode),
-      {
-        ...trans,
-        startOffset: sentenceInfo.startOffset,
-        endOffset: sentenceInfo.endOffset
-      }
-    ]);
-  }
-
-  // Apply translations to each text node
-  for (const [textNode, nodeTranslations] of translationMap) {
-    // Sort by offset descending so we can replace from end to start
-    nodeTranslations.sort((a, b) => b.startOffset - a.startOffset);
-
-    replaceInTextNode(textNode, nodeTranslations);
-  }
-}
-
-function replaceInTextNode(textNode, translations) {
-  const parent = textNode.parentNode;
-  if (!parent) return;
-
-  const originalText = textNode.textContent;
-  const fragment = document.createDocumentFragment();
-
-  let currentPos = 0;
-
-  // Sort translations by start offset ascending for processing
-  const sortedTranslations = [...translations].sort((a, b) => a.startOffset - b.startOffset);
-
-  for (const trans of sortedTranslations) {
-    // Add text before this translation
-    if (trans.startOffset > currentPos) {
-      fragment.appendChild(document.createTextNode(originalText.slice(currentPos, trans.startOffset)));
-    }
-
-    // Create the hover-to-reveal wrapper
-    const wrapper = document.createElement('span');
-    wrapper.className = 'sentence-swap-translated';
-    wrapper.dataset.original = trans.original;
-    wrapper.dataset.translated = trans.translated;
-    wrapper.textContent = trans.translated;
-
-    // Add tooltip with original text
-    wrapper.title = trans.original;
-
-    fragment.appendChild(wrapper);
-    currentPos = trans.endOffset;
-  }
-
-  // Add remaining text
-  if (currentPos < originalText.length) {
-    fragment.appendChild(document.createTextNode(originalText.slice(currentPos)));
-  }
-
-  // Replace the text node with our fragment
-  parent.replaceChild(fragment, textNode);
 }

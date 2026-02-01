@@ -3,45 +3,60 @@
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'translate') {
-    handleTranslation(request.sentences, request.targetLanguage, request.apiKey)
+    handleTranslation(request.sentences, request.targetLanguage, request.apiKey, sender.tab.id)
       .then(sendResponse)
       .catch(error => sendResponse({ error: error.message }));
     return true; // Keep message channel open for async response
   }
 });
 
-async function handleTranslation(sentences, targetLanguage, apiKey) {
+async function handleTranslation(sentences, targetLanguage, apiKey, tabId) {
   if (!apiKey) {
     throw new Error('Gemini API key not configured. Please set it in extension options.');
   }
 
-  const translations = [];
-
-  for (const item of sentences) {
-    try {
-      const translation = await translateSentence(
-        item.sentence,
-        item.context,
-        targetLanguage,
-        apiKey
-      );
-      translations.push({
+  // Fire off all translation requests in parallel
+  const translationPromises = sentences.map(item =>
+    translateSentence(item.sentence, item.context, targetLanguage, apiKey)
+      .then(translated => ({
         index: item.index,
         original: item.sentence,
-        translated: translation
-      });
-    } catch (error) {
-      console.error('Translation error for sentence:', item.sentence, error);
-      translations.push({
-        index: item.index,
-        original: item.sentence,
-        translated: null,
-        error: error.message
-      });
-    }
-  }
+        translated,
+        success: true
+      }))
+      .catch(error => {
+        console.error('Translation error for sentence:', item.sentence, error);
+        return {
+          index: item.index,
+          original: item.sentence,
+          translated: null,
+          error: error.message,
+          success: false
+        };
+      })
+      .then(result => {
+        // Send each translation to content script as it completes
+        chrome.tabs.sendMessage(tabId, {
+          action: 'translationResult',
+          translation: result
+        }).catch(() => {
+          // Tab might be closed, ignore
+        });
+        return result;
+      })
+  );
 
-  return { translations };
+  // Wait for all to complete (success or failure)
+  const results = await Promise.all(translationPromises);
+
+  // Return summary
+  const successful = results.filter(r => r.success).length;
+  const failed = results.filter(r => !r.success).length;
+
+  return {
+    completed: true,
+    summary: { successful, failed, total: results.length }
+  };
 }
 
 async function translateSentence(sentence, context, targetLanguage, apiKey) {
