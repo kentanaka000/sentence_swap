@@ -84,8 +84,20 @@ async function processPage(settings) {
   // Store for later use when translations arrive
   window.__sentenceSwapData.allSentences = allSentences;
 
-  // Select random sentences based on percentage
-  const selectedCount = Math.min(30, Math.max(1, Math.floor(allSentences.length * (settings.percentage / 100))));
+  // Calculate total characters in all text nodes
+  const totalChars = textNodes.reduce((sum, node) => sum + node.textContent.length, 0);
+
+  // Calculate total characters in valid sentences
+  const validSentenceChars = allSentences.reduce((sum, s) => sum + s.sentence.length, 0);
+
+  // Adjust percentage so that x% of total text gets translated
+  // Formula: (adjusted% of valid sentences) * validChars = x% * totalChars
+  const adjustedPercentage = validSentenceChars > 0
+    ? (totalChars / validSentenceChars) * settings.percentage
+    : settings.percentage;
+
+  // Select random sentences based on adjusted percentage, capped at 30
+  const selectedCount = Math.min(30, Math.max(1, Math.floor(allSentences.length * (adjustedPercentage / 100))));
   const selectedSentences = selectRandomSentences(allSentences, selectedCount);
 
   // Pre-wrap selected sentences with placeholder spans
