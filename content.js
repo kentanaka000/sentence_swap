@@ -293,8 +293,7 @@ function extractTextNodes(root) {
     }
 
     // Skip hidden elements and their subtrees
-    const style = window.getComputedStyle(element);
-    if (style.display === 'none' || style.visibility === 'hidden') {
+    if (!element.checkVisibility({ checkVisibilityCSS: true })) {
       return;
     }
 
