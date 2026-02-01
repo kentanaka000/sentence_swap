@@ -16,7 +16,6 @@ A Chrome extension that randomly translates sentences on web pages to help you l
 2. Open `chrome://extensions/` in Chrome
 3. Enable "Developer mode" (top right)
 4. Click "Load unpacked" and select the `sentence_swap` folder
-5. Open `generate-icons.html` in a browser and download the icons to the `icons/` folder
 
 ## Configuration
 
